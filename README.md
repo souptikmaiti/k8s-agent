@@ -46,6 +46,7 @@ key for the configured model. Copy `.env.example` to `.env` and set
 For an HTTPS endpoint signed by an internal CA, set `K8S_MCP_CA_FILE` to the
 absolute path of its PEM CA certificate. The agent uses it for the MCP
 connection while keeping certificate verification enabled.
+Set `A2A_TASK_DATABASE_URL` to the local PostgreSQL `k8s_agent_tasks` database.
 Keep `.env` out of Git. Existing process environment variables take precedence.
 
 ```sh
@@ -78,6 +79,7 @@ reachable, authorized MCP server.
 | `K8S_AGENT_BASE_URL` | `http://localhost:8002` | A2A URL advertised in the agent card |
 | `K8S_AGENT_MODEL` | `gemini-3.6-flash` | ADK model name |
 | `K8S_AGENT_TEMPERATURE` | `1.0` | Model sampling temperature (0 to 1) |
+| `A2A_TASK_DATABASE_URL` | `postgresql+asyncpg://postgres@127.0.0.1:5432/k8s_agent_tasks` | PostgreSQL URL shared by A2A tasks and ADK sessions; set the password in `.env` |
 | `PORT` | `8002` | A2A listening port |
 
 Google recommends temperature 1.0 for Gemini 3 because lower values can
@@ -89,7 +91,9 @@ degrade reasoning. See the
 The image and chart deploy **only** this A2A agent. Run Kubernetes MCP as a
 separate service and point `K8S_MCP_URL` or `k8sMcpUrl` at its `/mcp` endpoint.
 Inside a container, `127.0.0.1` refers to that container; use a reachable
-service address instead.
+service address instead. An agent container also needs a PostgreSQL URL that
+uses a reachable database hostname, such as `a2a-postgres` on a shared Docker
+network.
 
 ```sh
 docker build -t k8s-agent:0.1.0 .
@@ -98,19 +102,29 @@ docker build -t k8s-agent:0.1.0 .
 The chart in `charts/k8s-agent` expects a Secret containing `GOOGLE_API_KEY`.
 For an authenticated MCP HTTP endpoint, set `existingK8sMcpSecret` to a Secret
 containing `K8S_MCP_TOKEN`. The chart advertises its in-cluster Service URL in
-the A2A card.
+the A2A card. Set `existingTaskDatabaseSecret` to a Secret containing a
+PostgreSQL `A2A_TASK_DATABASE_URL`, for example
+`postgresql+asyncpg://user:password@postgres-host:5432/k8s_agent_tasks`.
+Create that database and user before starting the agent; the task and session
+tables are created automatically.
 
 ```sh
 helm upgrade --install k8s-agent charts/k8s-agent \
   --set image.repository=YOUR_REGISTRY/k8s-agent \
   --set image.tag=0.1.0 \
   --set k8sMcpUrl=http://kubernetes-mcp-server.YOUR_NAMESPACE.svc.cluster.local:8080/mcp \
-  --set existingSecret=YOUR_MODEL_SECRET
+  --set existingSecret=YOUR_MODEL_SECRET \
+  --set existingTaskDatabaseSecret=YOUR_TASK_DATABASE_SECRET
 ```
 
-Use TLS and authentication when the MCP endpoint is exposed beyond a trusted
-local network. The initial single replica uses ADK's in-memory A2A task and
-session storage; configure shared storage before scaling it.
+Local and Kubernetes runs both use PostgreSQL. The local `.env.example` points
+to the Docker PostgreSQL instance on `127.0.0.1:5432`; replace its sample
+password in your `.env`. The Kubernetes Secret must point to a database
+reachable from the agent pod, not to pod-local `127.0.0.1`. Use a separate
+database for each agent service. A2A tasks and ADK session history survive
+restarts; an interrupted run is not resumed automatically. ADK artifacts,
+memory, and credentials remain in memory. Use TLS and authentication when the
+MCP endpoint is exposed beyond a trusted local network.
 
 ## Limits
 

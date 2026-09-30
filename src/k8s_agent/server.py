@@ -1,11 +1,19 @@
 """A2A application and CLI entry point."""
 
+from contextlib import asynccontextmanager
+
 from a2a.types import AgentCapabilities, AgentCard, AgentInterface, AgentSkill
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
+from google.adk.artifacts import InMemoryArtifactService
+from google.adk.auth.credential_service.in_memory_credential_service import InMemoryCredentialService
+from google.adk.memory import InMemoryMemoryService
+from google.adk.runners import Runner
+from google.adk.sessions import DatabaseSessionService
 import uvicorn
 
 from k8s_agent.agent import build_agent
 from k8s_agent.config import Settings
+from k8s_agent.task_store import create_task_store
 
 
 def build_card(settings: Settings) -> AgentCard:
@@ -51,10 +59,34 @@ def build_card(settings: Settings) -> AgentCard:
 
 def build_app(settings: Settings):
     settings.validate()
+    agent = build_agent(settings)
+    task_store, task_lifespan = create_task_store(settings.a2a_task_database_url)
+    session_service = DatabaseSessionService(db_engine=task_store.engine)
+    runner = Runner(
+        app_name=agent.name,
+        agent=agent,
+        session_service=session_service,
+        artifact_service=InMemoryArtifactService(),
+        memory_service=InMemoryMemoryService(),
+        credential_service=InMemoryCredentialService(),
+    )
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with task_lifespan(app):
+            try:
+                await session_service.prepare_tables()
+                yield
+            finally:
+                await runner.close()
+
     return to_a2a(
-        build_agent(settings),
+        agent,
         agent_card=build_card(settings),
         port=settings.port,
+        task_store=task_store,
+        runner=runner,
+        lifespan=lifespan,
     )
 
 

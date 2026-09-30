@@ -1,8 +1,11 @@
+import asyncio
 from pathlib import Path
 import ssl
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+from a2a.server.tasks import DatabaseTaskStore
 import certifi
+from google.adk.sessions import DatabaseSessionService
 from starlette.testclient import TestClient
 
 from k8s_agent import config
@@ -11,10 +14,30 @@ from k8s_agent.config import Settings
 from k8s_agent.server import build_app
 
 
+def test_a2a_runner_uses_postgresql_session_service():
+    with patch("k8s_agent.server.to_a2a") as to_a2a:
+        build_app(Settings())
+
+    task_store = to_a2a.call_args.kwargs["task_store"]
+    runner = to_a2a.call_args.kwargs["runner"]
+    assert isinstance(runner.session_service, DatabaseSessionService)
+    assert runner.session_service.db_engine is task_store.engine
+
+    async def close():
+        await runner.close()
+        await task_store.engine.dispose()
+
+    asyncio.run(close())
+
+
 def test_card_advertises_deployment_pod_and_service_skills():
     settings = Settings()
 
-    with TestClient(build_app(settings)) as client:
+    with (
+        patch.object(DatabaseTaskStore, "initialize", new_callable=AsyncMock),
+        patch.object(DatabaseSessionService, "prepare_tables", new_callable=AsyncMock),
+        TestClient(build_app(settings)) as client,
+    ):
         response = client.get("/.well-known/agent-card.json")
 
     assert response.status_code == 200

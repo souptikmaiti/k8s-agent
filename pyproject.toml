@@ -5,8 +5,8 @@ description = "A2A Kubernetes inspection agent built with Google ADK and MCP"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "a2a-sdk>=1,<2",
-    "google-adk[a2a,mcp]>=2.10.0,<3",
+    "a2a-sdk[postgresql]>=1,<2",
+    "google-adk[a2a,db,mcp]>=2.10.0,<3",
     "httpx>=0.28,<1",
     "python-dotenv>=1.2.3",
     "uvicorn>=0.54.0",

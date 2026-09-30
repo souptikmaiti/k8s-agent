@@ -35,6 +35,11 @@ spec:
               value: {{ .Values.model | quote }}
             - name: K8S_AGENT_TEMPERATURE
               value: {{ .Values.temperature | quote }}
+            - name: A2A_TASK_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "existingTaskDatabaseSecret is required" .Values.existingTaskDatabaseSecret | quote }}
+                  key: {{ .Values.taskDatabaseSecretKey | quote }}
             {{- if .Values.existingSecret }}
             - name: GOOGLE_API_KEY
               valueFrom:

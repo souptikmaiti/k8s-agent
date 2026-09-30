@@ -14,6 +14,9 @@ model: gemini-3.6-flash
 # Google recommends 1.0 for Gemini 3; lower values can degrade reasoning.
 temperature: "1.0"
 existingSecret: ""
+# Secret containing a PostgreSQL URL in A2A_TASK_DATABASE_URL.
+existingTaskDatabaseSecret: ""
+taskDatabaseSecretKey: A2A_TASK_DATABASE_URL
 # Optional Secret containing the MCP HTTP bearer token.
 existingK8sMcpSecret: ""
 k8sMcpSecretKey: K8S_MCP_TOKEN
