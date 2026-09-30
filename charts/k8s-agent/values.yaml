@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: k8s-agent
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  port: 8002
+
+# Streamable HTTP URL of the separately deployed Kubernetes MCP server.
+k8sMcpUrl: http://kubernetes-mcp-server:8080/mcp
+model: gemini-3.6-flash
+# Google recommends 1.0 for Gemini 3; lower values can degrade reasoning.
+temperature: "1.0"
+existingSecret: ""
+# Optional Secret containing the MCP HTTP bearer token.
+existingK8sMcpSecret: ""
+k8sMcpSecretKey: K8S_MCP_TOKEN
+extraEnv: []
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi

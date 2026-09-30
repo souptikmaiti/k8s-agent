@@ -1,0 +1,21 @@
+# Example for containers/kubernetes-mcp-server running on the developer machine.
+# The server uses the user's active kubeconfig unless configured otherwise.
+port = "8083"
+bind_address = "127.0.0.1"
+read_only = true
+toolsets = ["core"]
+enabled_tools = [
+  "namespaces_list",
+  "resources_list",
+  "resources_get",
+  "pods_list_in_namespace",
+  "pods_get",
+  "pods_log",
+  "events_list",
+]
+
+# Generic resources_get/resources_list should not expose Secret objects.
+[[denied_resources]]
+group = ""
+version = "v1"
+kind = "Secret"
