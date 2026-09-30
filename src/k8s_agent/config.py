@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 class Settings:
     k8s_mcp_url: str = "http://127.0.0.1:8083/mcp"
     k8s_mcp_token: str = field(default="", repr=False)
+    k8s_mcp_ca_file: str = ""
     public_base_url: str = "http://localhost:8002"
     model: str = "gemini-3.6-flash"
     # Google recommends the default 1.0 for Gemini 3 to avoid degraded reasoning.
@@ -28,6 +29,7 @@ class Settings:
                 "K8S_MCP_URL", "http://127.0.0.1:8083/mcp"
             ).strip(),
             k8s_mcp_token=os.getenv("K8S_MCP_TOKEN", "").strip(),
+            k8s_mcp_ca_file=os.getenv("K8S_MCP_CA_FILE", "").strip(),
             public_base_url=os.getenv(
                 "K8S_AGENT_BASE_URL", "http://localhost:8002"
             ).strip(),
@@ -48,6 +50,8 @@ class Settings:
                 raise ValueError(f"{name} must be an HTTP(S) URL")
         if not self.model:
             raise ValueError("K8S_AGENT_MODEL is required")
+        if self.k8s_mcp_ca_file and not Path(self.k8s_mcp_ca_file).expanduser().is_file():
+            raise ValueError("K8S_MCP_CA_FILE must point to an existing CA file")
         if not 1 <= self.port <= 65535:
             raise ValueError("PORT must be between 1 and 65535")
         if not 0 <= self.temperature <= 1:

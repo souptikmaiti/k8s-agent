@@ -1,5 +1,8 @@
 from pathlib import Path
+import ssl
+from unittest.mock import patch
 
+import certifi
 from starlette.testclient import TestClient
 
 from k8s_agent import config
@@ -41,6 +44,23 @@ def test_agent_uses_http_mcp_with_only_inspection_tools():
     )
     assert agent.generate_content_config.temperature == 1.0
     assert "test-token" not in repr(settings)
+
+
+def test_https_mcp_client_trusts_configured_ca():
+    settings = Settings(
+        k8s_mcp_url="https://mcp.example.test/mcp",
+        k8s_mcp_ca_file=certifi.where(),
+    )
+    settings.validate()
+    toolset = build_agent(settings).tools[0]
+
+    with patch("k8s_agent.agent.httpx.AsyncClient") as client:
+        toolset._connection_params.httpx_client_factory(timeout=None)
+
+    context = client.call_args.kwargs["verify"]
+    assert isinstance(context, ssl.SSLContext)
+    assert context.verify_mode == ssl.CERT_REQUIRED
+    assert context.get_ca_certs()
 
 
 def test_settings_load_local_env(tmp_path: Path, monkeypatch):

@@ -43,6 +43,9 @@ Requires Python 3.11+, `uv`, a running Kubernetes MCP Server, and a Google API
 key for the configured model. Copy `.env.example` to `.env` and set
 `GOOGLE_API_KEY`. Set `K8S_MCP_URL` if your MCP server uses another address.
 `K8S_MCP_TOKEN` is optional and is sent as a bearer token only when provided.
+For an HTTPS endpoint signed by an internal CA, set `K8S_MCP_CA_FILE` to the
+absolute path of its PEM CA certificate. The agent uses it for the MCP
+connection while keeping certificate verification enabled.
 Keep `.env` out of Git. Existing process environment variables take precedence.
 
 ```sh
@@ -71,6 +74,7 @@ reachable, authorized MCP server.
 | `GOOGLE_API_KEY` | unset | Google model credential |
 | `K8S_MCP_URL` | `http://127.0.0.1:8083/mcp` | Kubernetes MCP Streamable HTTP endpoint |
 | `K8S_MCP_TOKEN` | unset | Optional MCP HTTP bearer token |
+| `K8S_MCP_CA_FILE` | unset | Optional PEM CA certificate file for the MCP HTTPS connection |
 | `K8S_AGENT_BASE_URL` | `http://localhost:8002` | A2A URL advertised in the agent card |
 | `K8S_AGENT_MODEL` | `gemini-3.6-flash` | ADK model name |
 | `K8S_AGENT_TEMPERATURE` | `1.0` | Model sampling temperature (0 to 1) |

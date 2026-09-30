@@ -1,5 +1,9 @@
 """ADK agent with read-only Kubernetes MCP tools."""
 
+from pathlib import Path
+import ssl
+
+import httpx
 from google.adk.agents import LlmAgent
 from google.adk.tools.mcp_tool import McpToolset
 from google.adk.tools.mcp_tool.mcp_session_manager import StreamableHTTPConnectionParams
@@ -20,11 +24,29 @@ READ_ONLY_K8S_TOOLS = [
 ]
 
 
+def _mcp_client_factory(ca_file: str):
+    # Add the cluster CA to normal trust roots for this MCP connection only.
+    ssl_context = ssl.create_default_context()
+    ssl_context.load_verify_locations(cafile=str(Path(ca_file).expanduser()))
+
+    def create_client(headers=None, timeout=None, auth=None):
+        return httpx.AsyncClient(
+            headers=headers, timeout=timeout, auth=auth, verify=ssl_context
+        )
+
+    return create_client
+
+
 def build_agent(settings: Settings) -> LlmAgent:
     headers = (
         {"Authorization": f"Bearer {settings.k8s_mcp_token}"}
         if settings.k8s_mcp_token
         else None
+    )
+    connection_options = (
+        {"httpx_client_factory": _mcp_client_factory(settings.k8s_mcp_ca_file)}
+        if settings.k8s_mcp_ca_file
+        else {}
     )
     k8s_tools = McpToolset(
         connection_params=StreamableHTTPConnectionParams(
@@ -32,6 +54,7 @@ def build_agent(settings: Settings) -> LlmAgent:
             headers=headers,
             timeout=10,
             sse_read_timeout=120,
+            **connection_options,
         ),
         tool_filter=READ_ONLY_K8S_TOOLS,
         tool_name_prefix="k8s",
